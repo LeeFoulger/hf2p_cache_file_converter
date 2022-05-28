@@ -38,7 +38,7 @@ private:
 	long get_post_shared_file_dates_offset();
 	void cache_file_set_section_info(long section_index);
 	void cache_file_set_tags_info();
-	char* tag_get(unsigned long tag_group, long index);
+	char* tag_get(unsigned long tag_group, long tag_index);
 };
 
 int main(int argc, const char* argv[])
@@ -143,13 +143,22 @@ bool c_hf2p_cache_file_converter::apply_changes()
 	cache_file_set_section_info(k_tags_section_index);
 	cache_file_set_tags_info();
 
+	long* tags_header = reinterpret_cast<long*>(tags_data);
+	long* tag_table = reinterpret_cast<long*>((char*)tags_header + tags_header[1]);
 	for (long tag_index = 0; tag_index < reinterpret_cast<long*>(tags_data)[2]; tag_index++)
 	{
+		char* tag_data_begin = tags_data + tag_table[tag_index];
+		char* tag_data_end = tag_data_begin + *reinterpret_cast<char*>(tag_data_begin + 0x10) + 0x824;
+		long tag_data_size = static_cast<long>(tag_data_end - tag_data_begin);
+
 		if (tag_index != cache_file_get_scenario_index())
 		{
-			char* scenario = tag_get('scnr', tag_index);
-			if (scenario)
-				memset(scenario, 0, 0x824);
+			unsigned long* group_tags = reinterpret_cast<unsigned long*>(tag_data_begin + 0x14);
+			if (group_tags[0] == 'scnr' || group_tags[1] == 'scnr' || group_tags[2] == 'scnr')
+			{
+				tag_table[tag_index] = 0;
+				memset(tag_data_begin, 0, tag_data_size);
+			}
 		}
 	}
 
@@ -213,11 +222,11 @@ long& c_hf2p_cache_file_converter::cache_file_get_scenario_index()
 	return *reinterpret_cast<long*>(&out_map_data[0x2DF0 + get_post_shared_file_dates_offset()]);
 }
 
-char* c_hf2p_cache_file_converter::tag_get(unsigned long tag_group, long index)
+char* c_hf2p_cache_file_converter::tag_get(unsigned long tag_group, long tag_index)
 {
 	long* tags_header = reinterpret_cast<long*>(tags_data);
-	long* tag_table = reinterpret_cast<long*>((char*)tags_header + tags_header[1]);
-	char* tag_data = tags_data + tag_table[index];
+	long* tag_table = reinterpret_cast<long*>(tags_data + tags_header[1]);
+	char* tag_data = tags_data + tag_table[tag_index];
 
 	char* main_struct = tag_data + *reinterpret_cast<char*>(tag_data + 0x10);
 	unsigned long* group_tags = reinterpret_cast<unsigned long*>(tag_data + 0x14);
