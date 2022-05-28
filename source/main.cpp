@@ -33,6 +33,7 @@ private:
 	long cache_file_round_up_read_size(long size);
 	long cache_file_get_file_version();
 	long& cache_file_get_file_size();
+	long& cache_file_get_scenario_index();
 	void cache_file_set_shared_file_flags(long bit, bool add);
 	long get_post_shared_file_dates_offset();
 	void cache_file_set_section_info(long section_index);
@@ -192,4 +193,9 @@ void c_hf2p_cache_file_converter::cache_file_set_section_info(long section_index
 void c_hf2p_cache_file_converter::cache_file_set_tags_info()
 {
 	memcpy(&out_map_data[0x2DE0 + get_post_shared_file_dates_offset()], tags_data, 0x10);
+}
+
+long& c_hf2p_cache_file_converter::cache_file_get_scenario_index()
+{
+	return *reinterpret_cast<long*>(&out_map_data[0x2DF0 + get_post_shared_file_dates_offset()]);
 }
