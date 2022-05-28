@@ -44,8 +44,8 @@ int main(int argc, const char* argv[])
 	if (argc <= 2)
 	{
 		printf("no map names provided\n");
-		printf("usage:\thf2p_cache_set_converter.exe <maps path> <mapname0> <mapname1> replace\n");
-		printf(R"(example:\thf2p_cache_set_converter.exe C:\Games\ElDewrito\maps mainmenu guardian replace\n)");
+		printf("usage:\n\thf2p_cache_file_converter.exe <maps path> [mapname0] [mapname1]\n");
+		printf("example:\n\thf2p_cache_file_converter.exe \"C:\\Games\\ElDewrito\\maps\" mainmenu guardian\n");
 
 		return 1;
 	}
