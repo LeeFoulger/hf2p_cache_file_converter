@@ -144,7 +144,7 @@ bool c_hf2p_cache_file_converter::apply_changes()
 	cache_file_set_tags_info();
 
 	long* tags_header = reinterpret_cast<long*>(tags_data);
-	long* tag_table = reinterpret_cast<long*>((char*)tags_header + tags_header[1]);
+	long* tag_table = reinterpret_cast<long*>(tags_data + tags_header[1]);
 	for (long tag_index = 0; tag_index < reinterpret_cast<long*>(tags_data)[2]; tag_index++)
 	{
 		char* tag_data_begin = tags_data + tag_table[tag_index];
