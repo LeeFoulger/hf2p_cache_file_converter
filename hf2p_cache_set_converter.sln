@@ -1,0 +1,31 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.2.32505.173
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "hf2p_cache_set_converter", "hf2p_cache_set_converter.vcxproj", "{6C4439A2-9BA3-44EA-B267-95EA9F2530A2}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|x64 = Debug|x64
+		Debug|x86 = Debug|x86
+		Release|x64 = Release|x64
+		Release|x86 = Release|x86
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{6C4439A2-9BA3-44EA-B267-95EA9F2530A2}.Debug|x64.ActiveCfg = Debug|x64
+		{6C4439A2-9BA3-44EA-B267-95EA9F2530A2}.Debug|x64.Build.0 = Debug|x64
+		{6C4439A2-9BA3-44EA-B267-95EA9F2530A2}.Debug|x86.ActiveCfg = Debug|Win32
+		{6C4439A2-9BA3-44EA-B267-95EA9F2530A2}.Debug|x86.Build.0 = Debug|Win32
+		{6C4439A2-9BA3-44EA-B267-95EA9F2530A2}.Release|x64.ActiveCfg = Release|x64
+		{6C4439A2-9BA3-44EA-B267-95EA9F2530A2}.Release|x64.Build.0 = Release|x64
+		{6C4439A2-9BA3-44EA-B267-95EA9F2530A2}.Release|x86.ActiveCfg = Release|Win32
+		{6C4439A2-9BA3-44EA-B267-95EA9F2530A2}.Release|x86.Build.0 = Release|Win32
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {0950C4D2-9CF9-4F20-BA91-72E4DE2DB690}
+	EndGlobalSection
+EndGlobal
