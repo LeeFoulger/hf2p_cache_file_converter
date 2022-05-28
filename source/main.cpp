@@ -38,6 +38,7 @@ private:
 	long get_post_shared_file_dates_offset();
 	void cache_file_set_section_info(long section_index);
 	void cache_file_set_tags_info();
+	char* tag_get(unsigned long tag_group, long index);
 };
 
 int main(int argc, const char* argv[])
@@ -110,12 +111,14 @@ c_hf2p_cache_file_converter::c_hf2p_cache_file_converter(const char* maps_path, 
 	out_map_data = new char[out_map_data_size] {};
 	memcpy(out_map_data, in_map_data, in_map_data_size);
 	memcpy(out_map_data + tags_data_offset, tags_data, tags_data_size);
+
+	delete[] tags_data;
+	tags_data = out_map_data + tags_data_offset;
 }
 
 c_hf2p_cache_file_converter::~c_hf2p_cache_file_converter()
 {
 	if (in_map_data) delete[] in_map_data;
-	if (tags_data) delete[] tags_data;
 	if (out_map_data) delete[] out_map_data;
 
 	in_map_data = nullptr;
@@ -198,4 +201,17 @@ void c_hf2p_cache_file_converter::cache_file_set_tags_info()
 long& c_hf2p_cache_file_converter::cache_file_get_scenario_index()
 {
 	return *reinterpret_cast<long*>(&out_map_data[0x2DF0 + get_post_shared_file_dates_offset()]);
+}
+
+char* c_hf2p_cache_file_converter::tag_get(unsigned long tag_group, long index)
+{
+	long* tag_table = reinterpret_cast<long*>(&tags_data[4]);
+	char* tag_data = tags_data + tag_table[index];
+	char* main_struct = tag_data + *reinterpret_cast<char*>(tag_data + 0x10);
+	unsigned long* group_tags = reinterpret_cast<unsigned long*>(tag_data + 0x14);
+
+	if (group_tags[0] == tag_group || group_tags[1] == tag_group || group_tags[2] == tag_group)
+		return main_struct;
+
+	return nullptr;
 }
