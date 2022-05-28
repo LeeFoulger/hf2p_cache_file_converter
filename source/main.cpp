@@ -143,6 +143,16 @@ bool c_hf2p_cache_file_converter::apply_changes()
 	cache_file_set_section_info(k_tags_section_index);
 	cache_file_set_tags_info();
 
+	for (long tag_index = 0; tag_index < reinterpret_cast<long*>(tags_data)[2]; tag_index++)
+	{
+		if (tag_index != cache_file_get_scenario_index())
+		{
+			char* scenario = tag_get('scnr', tag_index);
+			if (scenario)
+				memset(scenario, 0, 0x824);
+		}
+	}
+
 	return true;
 }
 
