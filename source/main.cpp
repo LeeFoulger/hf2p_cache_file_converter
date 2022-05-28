@@ -205,8 +205,10 @@ long& c_hf2p_cache_file_converter::cache_file_get_scenario_index()
 
 char* c_hf2p_cache_file_converter::tag_get(unsigned long tag_group, long index)
 {
-	long* tag_table = reinterpret_cast<long*>(&tags_data[4]);
+	long* tags_header = reinterpret_cast<long*>(tags_data);
+	long* tag_table = reinterpret_cast<long*>((char*)tags_header + tags_header[1]);
 	char* tag_data = tags_data + tag_table[index];
+
 	char* main_struct = tag_data + *reinterpret_cast<char*>(tag_data + 0x10);
 	unsigned long* group_tags = reinterpret_cast<unsigned long*>(tag_data + 0x14);
 
