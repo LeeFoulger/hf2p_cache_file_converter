@@ -39,30 +39,23 @@ private:
 	void cache_file_set_tags_info();
 };
 
-int main()
+int main(int argc, const char* argv[])
 {
-	const char* maps_path = "P:/Dev/hf2p/maps";
-	const char* maps_to_convert[]
+	if (argc <= 2)
 	{
-		"mainmenu",
-		"bunkerworld",
-		"chill",
-		"cyberdyne",
-		"deadlock",
-		"guardian",
-		"riverworld",
-		"shrine",
-		"zanzibar",
-		//"s3d_avalanche",
-		//"s3d_edge",
-		//"s3d_reactor",
-		//"s3d_turf",
-	};
+		printf("no map names provided\n");
+		printf("usage:\thf2p_cache_set_converter.exe <maps path> <mapname0> <mapname1> replace\n");
+		printf(R"(example:\thf2p_cache_set_converter.exe C:\Games\ElDewrito\maps mainmenu guardian replace\n)");
 
-	size_t map_count = sizeof(maps_to_convert) / sizeof(maps_to_convert[0]);
-	for (size_t i = 0; i < map_count; i++)
+		return 1;
+	}
+
+	const char* maps_path = argv[1];
+	size_t maps_count = argc;
+	for (size_t i = 2; i < maps_count; i++)
 	{
-		c_hf2p_cache_file_converter* converter = new c_hf2p_cache_file_converter(maps_path, maps_to_convert[i]);
+		const char* map_name = argv[i];
+		c_hf2p_cache_file_converter* converter = new c_hf2p_cache_file_converter(maps_path, map_name);
 		if (converter->apply_changes())
 			converter->write_changes_to_disk();
 		delete converter;
