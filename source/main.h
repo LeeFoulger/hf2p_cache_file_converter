@@ -128,6 +128,7 @@ private:
 	long* get_tag_table()
 	{
 		long tag_table_offset = get_tag_table_offset();
+
 		return get_tag_data_at_offset<long>(tag_table_offset);
 	}
 
@@ -163,7 +164,6 @@ private:
 
 		return *get_tag_data_at_offset<cache_file_tag_instance>(tag_table[tag_index]);
 	}
-
 };
 
 bool read_data_from_file(char*& out_data, long& out_size, const char* filename);

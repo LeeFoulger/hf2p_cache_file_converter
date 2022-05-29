@@ -127,9 +127,10 @@ void c_hf2p_cache_file_converter::update_tags_header(bool zero_old_header)
 
 void c_hf2p_cache_file_converter::zero_other_scenarios()
 {
-	long* tag_table = get_tag_table();
-	long tag_count = get_tag_count();
-	long scenario_tag_index = get_scenario_index();
+	static long* tag_table = get_tag_table();
+	static long tag_count = get_tag_count();
+	static long scenario_tag_index = get_scenario_index();
+	static long cache_file_resource_gestalt_index = get_cache_file_resource_gestalt_index();
 
 	for (long tag_index = 0; tag_index < tag_count; tag_index++)
 	{
@@ -138,6 +139,12 @@ void c_hf2p_cache_file_converter::zero_other_scenarios()
 
 		cache_file_tag_instance& tag_instance = tag_instance_get(tag_index);
 		if (tag_instance.is_group('scnr') && tag_index != scenario_tag_index)
+		{
+			tag_table[tag_index] = 0;
+			tag_instance.zero_out();
+		}
+		
+		if (tag_instance.is_group('zone') && tag_index != cache_file_resource_gestalt_index)
 		{
 			tag_table[tag_index] = 0;
 			tag_instance.zero_out();
