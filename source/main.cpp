@@ -22,6 +22,15 @@ static_assert(sizeof(cache_file_section_bounds) == 0x8, "sizeof(cache_file_secti
 using t_section_masks = long[k_cache_file_section_types];
 using t_section_bounds = cache_file_section_bounds[k_cache_file_section_types];
 
+struct s_cache_file_tag_group
+{
+	unsigned long group_tags[3];
+
+	// string_id
+	long group_name;
+};
+static_assert(sizeof(s_cache_file_tag_group) == 0x10, "sizeof(s_cache_file_tag_group) != 0x10");
+
 struct cache_file_tag_instance
 {
 	unsigned long checksum;
@@ -33,10 +42,24 @@ struct cache_file_tag_instance
 	short tag_reference_fixup_count;
 
 	long definition_offset;
-	unsigned long group_tags[3];
 
-	// string_id
-	long group_name;
+	s_cache_file_tag_group tag_group;
+
+	bool is_group(unsigned long group_tag)
+	{
+		return tag_group.group_tags[0] == group_tag || tag_group.group_tags[1] == group_tag || tag_group.group_tags[2] == group_tag;
+	}
+
+	template<typename t_type = char>
+	t_type* definition_get(unsigned long group_tag)
+	{
+		return reinterpret_cast<t_type*>(reinterpret_cast<char*>(this) + definition_offset);
+	}
+
+	void zero_out()
+	{
+		memset(this, 0, total_size);
+	}
 };
 static_assert(sizeof(cache_file_tag_instance) == 0x24, "sizeof(cache_file_tag_instance) != 0x24");
 
@@ -87,10 +110,7 @@ private:
 	template<typename t_type = char>
 	t_type* get_tag_data_at_offset(long offset);
 
-	template<typename t_type = char>
-	t_type* tag_get(unsigned long tag_group, long tag_index);
-
-	cache_file_tag_instance* tag_instance_get(long tag_index);
+	cache_file_tag_instance& tag_instance_get(long tag_index);
 };
 
 int main(int argc, const char* argv[])
@@ -198,13 +218,11 @@ bool c_hf2p_cache_file_converter::apply_changes()
 	long* tag_table = get_tag_table();
 	for (long tag_index = 0; tag_index < get_tag_count(); tag_index++)
 	{
-		char* scenario = tag_get('scnr', tag_index);
-		if (scenario && tag_index != get_scenario_index())
+		cache_file_tag_instance& tag_instance = tag_instance_get(tag_index);
+		if (tag_instance.is_group('scnr') && tag_index != get_scenario_index())
 		{
-			cache_file_tag_instance* scenario_instance = tag_instance_get(tag_index);
-
 			tag_table[tag_index] = 0;
-			memset(scenario_instance, 0, scenario_instance->total_size);
+			tag_instance.zero_out();
 		}
 	}
 
@@ -303,22 +321,8 @@ t_type* c_hf2p_cache_file_converter::get_tag_data_at_offset(long offset)
 	return reinterpret_cast<t_type*>(tags_data + offset);
 }
 
-template<typename t_type>
-t_type* c_hf2p_cache_file_converter::tag_get(unsigned long tag_group, long tag_index)
-{
-	cache_file_tag_instance& tag_instance = *tag_instance_get(tag_index);
-	if (tag_instance.group_tags[0] == tag_group ||
-		tag_instance.group_tags[1] == tag_group ||
-		tag_instance.group_tags[2] == tag_group)
-	{
-		return reinterpret_cast<t_type*>(reinterpret_cast<char*>(&tag_instance) + tag_instance.definition_offset);
-	}
-
-	return nullptr;
-}
-
-cache_file_tag_instance* c_hf2p_cache_file_converter::tag_instance_get(long tag_index)
+cache_file_tag_instance& c_hf2p_cache_file_converter::tag_instance_get(long tag_index)
 {
 	long* tag_table = get_tag_table();
-	return get_tag_data_at_offset<cache_file_tag_instance>(tag_table[tag_index]);
+	return *get_tag_data_at_offset<cache_file_tag_instance>(tag_table[tag_index]);
 }
