@@ -1,5 +1,7 @@
 #pragma once
 
+long cache_file_round_up_read_size(long size);
+
 enum e_cache_file_section_type
 {
 	_cache_file_debug_section = 0,
@@ -85,12 +87,10 @@ protected:
 	long tags_data_offset;
 
 private:
-	long round_up_read_size(long size);
-
 	void update_shared_file_flags(long bit, bool add);
 	void update_section(e_cache_file_section_type section_type, long section_offset, long section_size);
 	void update_tags_header(bool zero_old_header = false);
-	void remove_other_scenarios();
+	void zero_other_scenarios();
 
 	template<typename t_type>
 	t_type* get_data_at_offset(long offset)
@@ -116,9 +116,15 @@ private:
 		return *get_data_at_offset<long>(8);
 	}
 
+	long& get_tag_table_offset()
+	{
+		return *get_data_at_offset<long>(0x2DE4);
+	}
+
 	long* get_tag_table()
 	{
-		return get_tag_data_at_offset<long>(*get_data_at_offset<long>(0x2DE4));
+		long tag_table_offset = get_tag_table_offset();
+		return get_tag_data_at_offset<long>(tag_table_offset);
 	}
 
 	long& get_tag_count()
