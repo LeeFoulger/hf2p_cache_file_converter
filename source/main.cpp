@@ -82,7 +82,7 @@ bool c_hf2p_cache_file_converter::apply_changes()
 
 	get_file_size() = out_map_data_size;
 	update_shared_file_flags(k_tags_shared_file_index, false);
-	update_section(_cache_file_tag_section, tags_data_offset, tags_data_size);
+	update_section(_cache_file_tag_section, tags_data_offset, tags_data_offset, tags_data_size);
 	update_tags_header(true);
 	zero_other_scenarios();
 
@@ -107,14 +107,13 @@ void c_hf2p_cache_file_converter::update_shared_file_flags(long bit, bool add)
 		shared_file_flags &= ~(1 << bit);
 }
 
-void c_hf2p_cache_file_converter::update_section(e_cache_file_section_type section_type, long section_offset, long section_size)
+void c_hf2p_cache_file_converter::update_section(e_cache_file_section section_index, long section_base_offset, long section_offset, long section_size)
 {
-	t_section_masks &section_masks = *get_data_at_offset<t_section_masks>(0x434);
-	section_masks[section_type] = section_offset;
+	s_cache_file_section_table& section_table = *get_data_at_offset<s_cache_file_section_table>(0x434);
 
-	t_section_bounds& section_bounds = *get_data_at_offset<t_section_bounds>(0x444);
-	section_bounds[section_type].virtual_address = section_offset;
-	section_bounds[section_type].size = section_size;
+	section_table.base_offsets[section_index] = section_base_offset;
+	section_table.section[section_index].offset = section_offset;
+	section_table.section[section_index].size = section_size;
 }
 
 void c_hf2p_cache_file_converter::update_tags_header(bool zero_old_header)

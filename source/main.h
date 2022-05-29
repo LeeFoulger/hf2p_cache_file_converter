@@ -2,25 +2,29 @@
 
 long cache_file_round_up_read_size(long size);
 
-enum e_cache_file_section_type
+enum e_cache_file_section
 {
 	_cache_file_debug_section = 0,
 	_cache_file_resource_section,
 	_cache_file_tag_section,
 	_cache_file_localization_section,
 
-	k_cache_file_section_types
+	k_cache_file_section_count
 };
 
-struct cache_file_section_bounds
+struct s_cache_file_section_table
 {
-	long virtual_address;
-	long size;
-};
-static_assert(sizeof(cache_file_section_bounds) == 0x8, "sizeof(cache_file_section_bounds) != 0x8");
+	struct s_cache_file_section
+	{
+		long offset;
+		long size;
+	};
+	static_assert(sizeof(s_cache_file_section) == 0x8, "sizeof(s_cache_file_section) != 0x8");
 
-using t_section_masks = long[k_cache_file_section_types];
-using t_section_bounds = cache_file_section_bounds[k_cache_file_section_types];
+	long base_offsets[k_cache_file_section_count];
+	s_cache_file_section section[k_cache_file_section_count];
+};
+static_assert(sizeof(s_cache_file_section_table) == 0x30, "sizeof(s_cache_file_section_table) != 0x30");
 
 struct s_cache_file_tag_group
 {
@@ -88,7 +92,7 @@ protected:
 
 private:
 	void update_shared_file_flags(long bit, bool add);
-	void update_section(e_cache_file_section_type section_type, long section_offset, long section_size);
+	void update_section(e_cache_file_section section_index, long section_base_offset, long section_offset, long section_size);
 	void update_tags_header(bool zero_old_header = false);
 	void zero_other_scenarios();
 
