@@ -23,5 +23,8 @@
     <ClInclude Include="source\main.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="source\cache_file.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>
