@@ -58,89 +58,7 @@ struct s_cache_file_insertion_point_resource_usage
 };
 static_assert(sizeof(s_cache_file_insertion_point_resource_usage) == 0xB4, "sizeof(s_cache_file_insertion_point_resource_usage) != 0xB4");
 
-struct s_cache_file_header_pre_zone
-{
-	s_file_last_modification_date shared_file_times[6];
-
-	char name[32];
-	long game_language;
-	char relative_path[256];
-	long minor_version;
-
-	long debug_tag_name_count;
-	long debug_tag_name_buffer;
-	long debug_tag_name_buffer_length;
-	long debug_tag_name_offsets;
-
-	long reports_offset;
-	long reports_size;
-
-	char __data2D4[60];
-
-	s_network_http_request_hash hash;
-	s_rsa_signature rsa_signature;
-
-	long section_offsets[4];
-	s_cache_file_section_file_bounds original_section_bounds[4];
-
-	s_cache_file_shared_resource_usage shared_resource_usage;
-
-	char insertion_point_count;
-	unsigned char __align278D[3];
-	s_cache_file_insertion_point_resource_usage insertion_point_resource_usage_storage[9];
-	long tag_table_offset;
-	long tag_count;
-	long map_id;
-	long scenario_index;
-	long cache_file_resource_gestalt_index;
-
-	unsigned char __data2DF8[0x594];
-
-	unsigned long footer_signature;
-};
-
-struct s_cache_file_header_post_zone
-{
-	s_file_last_modification_date shared_file_times[8];
-
-	char name[32];
-	long game_language;
-	char relative_path[256];
-	long minor_version;
-
-	long debug_tag_name_count;
-	long debug_tag_name_buffer;
-	long debug_tag_name_buffer_length;
-	long debug_tag_name_offsets;
-
-	long reports_offset;
-	long reports_size;
-
-	char __data2F4[60];
-
-	s_network_http_request_hash hash;
-	s_rsa_signature rsa_signature;
-
-	long section_offsets[4];
-	s_cache_file_section_file_bounds original_section_bounds[4];
-
-	s_cache_file_shared_resource_usage shared_resource_usage;
-
-	char insertion_point_count;
-	unsigned char __align279D[3];
-	s_cache_file_insertion_point_resource_usage insertion_point_resource_usage_storage[9];
-
-	long tag_table_offset;
-	long tag_count;
-	long map_id;
-	long scenario_index;
-	long cache_file_resource_gestalt_index;
-
-	unsigned char __data2E08[0x584];
-
-	unsigned long footer_signature;
-};
-
+template<size_t k_shared_file_count>
 struct s_cache_file_header
 {
 	unsigned long header_signature;
@@ -148,7 +66,7 @@ struct s_cache_file_header
 	long file_version;
 	long file_size;
 
-	long file_compressed_length;
+	long file_compressed_size;
 
 	long tag_data_offset;
 	long tag_buffer_offset;
@@ -178,55 +96,194 @@ struct s_cache_file_header
 
 	unsigned char shared_file_type_flags;
 	unsigned char __align169[3];
-
 	s_file_last_modification_date creation_time;
+	s_file_last_modification_date shared_file_times[k_shared_file_count];
 
-	union
-	{
-		s_cache_file_header_pre_zone pre_zone;
-		s_cache_file_header_post_zone post_zone;
-	};
+	char name[32];
+	long game_language;
+	char relative_path[256];
+	long minor_version;
+
+	long debug_tag_name_count;
+	long debug_tag_name_buffer;
+	long debug_tag_name_buffer_length;
+	long debug_tag_name_offsets;
+
+	long reports_offset;
+	long reports_size;
+
+	char __data2F4[60];
+
+	s_network_http_request_hash hash;
+	s_rsa_signature rsa_signature;
+
+	long section_offsets[4];
+	s_cache_file_section_file_bounds original_section_bounds[4];
+
+	s_cache_file_shared_resource_usage shared_resource_usage;
+	char insertion_point_count;
+	unsigned char __align279D[3];
+	s_cache_file_insertion_point_resource_usage insertion_point_resource_usage_storage[9];
+
+	long tag_table_offset;
+	long tag_count;
+	long map_id;
+	long scenario_index;
+	long cache_file_resource_gestalt_index;
+
+	unsigned char __data2E08[0x5C4 - sizeof(shared_file_times)];
+
+	unsigned long footer_signature;
+};
+static_assert(sizeof(s_cache_file_header<6>) == 0x3390, "sizeof(s_cache_file_header) == 0x3390");
+static_assert(sizeof(s_cache_file_header<8>) == 0x3390, "sizeof(s_cache_file_header) == 0x3390");
+
+class c_cache_file_header
+{
+private:
+	s_cache_file_header<6>* pre_zone;
+	s_cache_file_header<8>* post_zone;
 
 	bool older_build()
 	{
-		if (shared_file_type_flags & (1 << k_render_models_shared_file_index) &&
-			shared_file_type_flags & (1 << k_lightmaps_shared_file_index))
+		if ((*pre_zone).shared_file_type_flags & (1 << k_render_models_shared_file_index) &&
+			(*pre_zone).shared_file_type_flags & (1 << k_lightmaps_shared_file_index))
 			return false;
 
 		return true;
 	}
 
-	inline s_file_last_modification_date* shared_file_times()
+public:
+	c_cache_file_header(char*& data):
+		pre_zone(reinterpret_cast<decltype(pre_zone)>(data)),
+		post_zone(reinterpret_cast<decltype(post_zone)>(data)),
+#define GET_VERSIONED_FIELD(field) field(older_build() ? (*pre_zone).field : (*post_zone).field)
+		GET_VERSIONED_FIELD(header_signature),
+		GET_VERSIONED_FIELD(file_version),
+		GET_VERSIONED_FIELD(file_size),
+		GET_VERSIONED_FIELD(file_compressed_size),
+		GET_VERSIONED_FIELD(tag_data_offset),
+		GET_VERSIONED_FIELD(tag_buffer_offset),
+		GET_VERSIONED_FIELD(total_tags_size),
+		GET_VERSIONED_FIELD(source_file),
+		GET_VERSIONED_FIELD(build),
+		GET_VERSIONED_FIELD(scenario_type),
+		GET_VERSIONED_FIELD(scenario_load_type),
+		GET_VERSIONED_FIELD(__unknown140),
+		GET_VERSIONED_FIELD(tracked_build),
+		GET_VERSIONED_FIELD(has_insertion_points),
+		GET_VERSIONED_FIELD(header_flags),
+		GET_VERSIONED_FIELD(last_modification_date),
+		GET_VERSIONED_FIELD(__unknown14C),
+		GET_VERSIONED_FIELD(__unknown150),
+		GET_VERSIONED_FIELD(__unknown154),
+		GET_VERSIONED_FIELD(string_id_index_buffer_count),
+		GET_VERSIONED_FIELD(string_id_string_storage_size),
+		GET_VERSIONED_FIELD(string_id_index_buffer),
+		GET_VERSIONED_FIELD(string_id_string_storage),
+		GET_VERSIONED_FIELD(shared_file_type_flags),
+		GET_VERSIONED_FIELD(creation_time),
+		GET_VERSIONED_FIELD(shared_file_times),
+		GET_VERSIONED_FIELD(name),
+		GET_VERSIONED_FIELD(game_language),
+		GET_VERSIONED_FIELD(relative_path),
+		GET_VERSIONED_FIELD(minor_version),
+		GET_VERSIONED_FIELD(debug_tag_name_count),
+		GET_VERSIONED_FIELD(debug_tag_name_buffer),
+		GET_VERSIONED_FIELD(debug_tag_name_buffer_length),
+		GET_VERSIONED_FIELD(debug_tag_name_offsets),
+		GET_VERSIONED_FIELD(reports_offset),
+		GET_VERSIONED_FIELD(reports_size),
+		GET_VERSIONED_FIELD(__data2F4),
+		GET_VERSIONED_FIELD(hash),
+		GET_VERSIONED_FIELD(rsa_signature),
+		GET_VERSIONED_FIELD(section_offsets),
+		GET_VERSIONED_FIELD(original_section_bounds),
+		GET_VERSIONED_FIELD(shared_resource_usage),
+		GET_VERSIONED_FIELD(insertion_point_count),
+		GET_VERSIONED_FIELD(insertion_point_resource_usage_storage),
+		GET_VERSIONED_FIELD(tag_table_offset),
+		GET_VERSIONED_FIELD(tag_count),
+		GET_VERSIONED_FIELD(map_id),
+		GET_VERSIONED_FIELD(scenario_index),
+		GET_VERSIONED_FIELD(cache_file_resource_gestalt_index),
+		GET_VERSIONED_FIELD(footer_signature)
+#undef GET_VERSIONED_FIELD
 	{
-		return older_build() ? pre_zone.shared_file_times : post_zone.shared_file_times;
+		pre_zone = nullptr;
+		post_zone = nullptr;
 	}
-#define DECLARE_VERSIONED_FIELD(field) __forceinline auto& field() { return older_build() ? pre_zone.field : post_zone.field; }
-	DECLARE_VERSIONED_FIELD(name);
-	DECLARE_VERSIONED_FIELD(game_language);
-	DECLARE_VERSIONED_FIELD(relative_path);
-	DECLARE_VERSIONED_FIELD(minor_version);
-	DECLARE_VERSIONED_FIELD(debug_tag_name_count);
-	DECLARE_VERSIONED_FIELD(debug_tag_name_buffer);
-	DECLARE_VERSIONED_FIELD(debug_tag_name_buffer_length);
-	DECLARE_VERSIONED_FIELD(debug_tag_name_offsets);
-	DECLARE_VERSIONED_FIELD(reports_offset);
-	DECLARE_VERSIONED_FIELD(reports_size);
-	DECLARE_VERSIONED_FIELD(hash);
-	DECLARE_VERSIONED_FIELD(rsa_signature);
-	DECLARE_VERSIONED_FIELD(section_offsets);
-	DECLARE_VERSIONED_FIELD(original_section_bounds);
-	DECLARE_VERSIONED_FIELD(shared_resource_usage);
-	DECLARE_VERSIONED_FIELD(insertion_point_count);
-	DECLARE_VERSIONED_FIELD(insertion_point_resource_usage_storage);
-	DECLARE_VERSIONED_FIELD(tag_table_offset);
-	DECLARE_VERSIONED_FIELD(tag_count);
-	DECLARE_VERSIONED_FIELD(map_id);
-	DECLARE_VERSIONED_FIELD(scenario_index);
-	DECLARE_VERSIONED_FIELD(cache_file_resource_gestalt_index);
-	DECLARE_VERSIONED_FIELD(footer_signature);
-#undef DECLARE_VERSIONED_FIELD
+
+	unsigned long& header_signature;
+
+	long& file_version;
+	long& file_size;
+
+	long& file_compressed_size;
+
+	long& tag_data_offset;
+	long& tag_buffer_offset;
+	long& total_tags_size;
+
+	char(&source_file)[256];
+	char(&build)[32];
+
+	short& scenario_type;
+	short& scenario_load_type;
+
+	bool& __unknown140;
+	bool& tracked_build;
+	bool& has_insertion_points;
+	unsigned char& header_flags;
+
+	s_file_last_modification_date& last_modification_date;
+
+	long& __unknown14C;
+	long& __unknown150;
+	long& __unknown154;
+
+	long& string_id_index_buffer_count;
+	long& string_id_string_storage_size;
+	long& string_id_index_buffer;
+	long& string_id_string_storage;
+
+	unsigned char& shared_file_type_flags;
+	s_file_last_modification_date& creation_time;
+	s_file_last_modification_date* shared_file_times;
+
+	char(&name)[32];
+	long& game_language;
+	char(&relative_path)[256];
+	long& minor_version;
+
+	long& debug_tag_name_count;
+	long& debug_tag_name_buffer;
+	long& debug_tag_name_buffer_length;
+	long& debug_tag_name_offsets;
+
+	long& reports_offset;
+	long& reports_size;
+
+	char(&__data2F4)[60];
+
+	s_network_http_request_hash& hash;
+	s_rsa_signature& rsa_signature;
+
+	long(&section_offsets)[4];
+	s_cache_file_section_file_bounds(&original_section_bounds)[4];
+
+	s_cache_file_shared_resource_usage& shared_resource_usage;
+	char& insertion_point_count;
+	s_cache_file_insertion_point_resource_usage(&insertion_point_resource_usage_storage)[9];
+
+	long& tag_table_offset;
+	long& tag_count;
+	long& map_id;
+	long& scenario_index;
+	long& cache_file_resource_gestalt_index;
+
+	unsigned long& footer_signature;
 };
-static_assert(sizeof(s_cache_file_header) == 0x3390, "sizeof(s_cache_file_header) != 0x3390");
 
 struct s_cache_file_tag_group
 {
