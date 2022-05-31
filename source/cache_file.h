@@ -1,7 +1,7 @@
 #pragma once
 #pragma pack(push, 1)
 
-long cache_file_round_up_read_size(long size)
+__forceinline long cache_file_round_up_read_size(long size)
 {
 	return (size & 0xF) != 0 ? (size | 0xF) + 1 : size;
 }
@@ -9,6 +9,10 @@ long cache_file_round_up_read_size(long size)
 const long k_tags_shared_file_index = 1;
 const long k_render_models_shared_file_index = 6;
 const long k_lightmaps_shared_file_index = 7;
+
+// 1011 1111 1111 1111 1111 1111 1111 1111
+//  ^ bit 30
+const unsigned long k_runtime_address_mask = 0xBFFFFFFF;
 
 struct s_file_last_modification_date
 {
@@ -290,38 +294,77 @@ struct s_cache_file_tag_group
 	unsigned long group_tags[3];
 
 	// string_id
-	long group_name;
+	unsigned long group_name;
 };
 static_assert(sizeof(s_cache_file_tag_group) == 0x10, "sizeof(s_cache_file_tag_group) != 0x10");
 
-struct cache_file_tag_instance
+struct s_cache_file_tag_instance
 {
 	unsigned long checksum;
-	long total_size;
+	unsigned long total_tag_size;
 
-	short child_tag_count;
-	short data_fixup_count;
-	short resource_fixup_count;
-	short tag_reference_fixup_count;
+	short child_count;
+	short tag_data_count;
+	short tag_resource_count;
+	short tag_reference_count; // padding
 
-	long definition_offset;
+	unsigned long address;
 
 	s_cache_file_tag_group tag_group;
 
-	bool is_group(unsigned long group_tag)
+	__forceinline bool is_group(unsigned long group_tag)
 	{
 		return tag_group.group_tags[0] == group_tag || tag_group.group_tags[1] == group_tag || tag_group.group_tags[2] == group_tag;
 	}
 
 	template<typename t_type = char>
-	t_type* definition_get(unsigned long group_tag)
+	__forceinline t_type* definition_get(unsigned long group_tag, long offset = 0)
 	{
-		return reinterpret_cast<t_type*>(reinterpret_cast<char*>(this) + definition_offset);
+		return reinterpret_cast<t_type*>(reinterpret_cast<char*>(this) + address + offset);
 	}
 
-	void zero_out();
+	__forceinline long* child_tag_table()
+	{
+		if (child_count)
+			return buffer_end<long>();
+
+		return nullptr;
+	}
+
+	__forceinline long* tag_data_table()
+	{
+		if (tag_data_count)
+			return buffer_end<long>() + child_count;
+
+		return nullptr;
+	}
+
+	__forceinline long* tag_resource_table()
+	{
+		if (tag_resource_count)
+			return buffer_end<long>() + child_count + tag_data_count;
+
+		return nullptr;
+	}
+
+	__forceinline long* tag_reference_table()
+	{
+		if (tag_reference_count)
+			return buffer_end<long>() + child_count + tag_data_count + tag_resource_count;
+
+		return nullptr;
+	}
+
+	__forceinline void zero_out();
+
+private:
+	template<typename t_type>
+	__forceinline t_type* buffer_end(long offset = 0)
+	{
+		return reinterpret_cast<t_type*>(reinterpret_cast<char*>(this) + sizeof(s_cache_file_tag_instance) + offset);
+	}
 };
-static_assert(sizeof(cache_file_tag_instance) == 0x24, "sizeof(cache_file_tag_instance) != 0x24");
+static_assert(sizeof(s_cache_file_tag_instance) == 0x24, "sizeof(s_cache_file_tag_instance) != 0x24");
 
 struct s_cache_file_tags_header
 {
@@ -338,11 +381,49 @@ struct s_cache_file_tags_header
 		return reinterpret_cast<long*>(reinterpret_cast<char*>(this) + tag_table_offset);
 	}
 
-	__forceinline cache_file_tag_instance& tag_instance_get(long tag_index)
+	__forceinline s_cache_file_tag_instance& tag_instance_get(long tag_index)
 	{
-		return *reinterpret_cast<cache_file_tag_instance*>(reinterpret_cast<char*>(this) + tag_table()[tag_index]);
+		return *reinterpret_cast<s_cache_file_tag_instance*>(reinterpret_cast<char*>(this) + tag_table()[tag_index]);
 	}
+
+	__forceinline void zero_out();
 };
 static_assert(sizeof(s_cache_file_tags_header) == 0x20, "sizeof(s_cache_file_tags_header) != 0x20");
 
-#pragma pack(pop)
+struct s_tag_block
+{
+	long count;
+	unsigned long address;
+	unsigned long definition;
+};
+static_assert(sizeof(s_tag_block) == 0xC, "sizeof(s_tag_block) != 0xC");
+
+struct s_tag_data
+{
+	unsigned long size;
+
+	unsigned long flags;
+	unsigned long stream_position;
+
+	unsigned long address;
+	unsigned long definition;
+};
+static_assert(sizeof(s_tag_data) == 0x14, "sizeof(s_tag_data) != 0x14");
+
+struct s_tag_reference
+{
+	unsigned long group_tag;
+	unsigned long name_address;
+	unsigned long name_length;
+	long index;
+};
+static_assert(sizeof(s_tag_reference) == 0x10, "sizeof(s_tag_reference) != 0x10");
+
+struct s_tag_resource_reference
+{
+	unsigned long pagable_resource;
+	long : 32;
+};
+static_assert(sizeof(s_tag_resource_reference) == 0x8, "sizeof(s_tag_resource_reference) != 0x8");
+
+template<size_t k_added>

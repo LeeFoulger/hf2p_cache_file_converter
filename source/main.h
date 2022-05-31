@@ -5,9 +5,14 @@
 
 #include <cache_file.h>
 
-void cache_file_tag_instance::zero_out()
+void s_cache_file_tag_instance::zero_out()
 {
-	memset(this, 0, total_size);
+	memset(this, 0, total_tag_size);
+}
+
+void s_cache_file_tags_header::zero_out()
+{
+	memset(this, 0, sizeof(*this));
 }
 
 class c_hf2p_cache_file_converter
@@ -32,7 +37,7 @@ protected:
 	long m_tags_data_size;
 	long m_tags_data_offset;
 
-	s_cache_file_header* m_header;
+	c_cache_file_header* m_header;
 	s_cache_file_tags_header* m_tags_header;
 
 private:

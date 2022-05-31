@@ -42,7 +42,7 @@ c_hf2p_cache_file_converter::c_hf2p_cache_file_converter(const char* maps_path, 
 	memcpy(m_out_map_data, m_in_map_data, m_in_map_data_size);
 	memcpy(m_out_map_data + m_tags_data_offset, m_tags_data, m_tags_data_size);
 
-	m_header = reinterpret_cast<s_cache_file_header*>(m_out_map_data);
+	m_header = new c_cache_file_header(m_out_map_data);
 	m_tags_header = reinterpret_cast<s_cache_file_tags_header*>(m_out_map_data + m_tags_data_offset);
 }
 
@@ -68,8 +68,6 @@ bool c_hf2p_cache_file_converter::apply_changes()
 		return false;
 	}
 
-	printf("using a %s zone tag header", m_header->older_build() ? "pre" : "post");
-
 	add_tag_section();
 	zero_unnused_tags();
 
@@ -88,33 +86,101 @@ void c_hf2p_cache_file_converter::add_tag_section()
 {
 	m_header->file_size = m_out_map_data_size;
 	m_header->shared_file_type_flags &= ~(1 << k_tags_shared_file_index);
-	m_header->section_offsets()[_cache_file_tag_section] = m_tags_data_offset;
-	m_header->original_section_bounds()[_cache_file_tag_section].offset = m_tags_data_offset;
-	m_header->original_section_bounds()[_cache_file_tag_section].size = m_tags_data_size;
-	m_header->tag_table_offset() = m_tags_header->tag_table_offset;
-	m_header->tag_count() = m_tags_header->tag_count;
-	//memset(m_tags_header, 0, sizeof(s_cache_file_tags_header));
+	m_header->section_offsets[_cache_file_tag_section] = m_tags_data_offset;
+	m_header->original_section_bounds[_cache_file_tag_section].offset = m_tags_data_offset;
+	m_header->original_section_bounds[_cache_file_tag_section].size = m_tags_data_size;
+	m_header->tag_table_offset = m_tags_header->tag_table_offset;
+	m_header->tag_count = m_tags_header->tag_count;
+	//m_tags_header->zero_out();
+}
+
+void handle_child_tags(s_cache_file_tags_header& tags_header, long index)
+{
+	s_cache_file_tag_instance& instance = tags_header.tag_instance_get(index);
+	long* table = instance.child_tag_table();
+	if (table)
+	{
+		for (long i = 0; i < instance.child_count; i++)
+		{
+			s_cache_file_tag_instance& child_instance = tags_header.tag_instance_get(table[i]);
+
+			printf("");
+		}
+	}
+}
+
+void handle_tag_data(s_cache_file_tags_header& tags_header, long index)
+{
+	s_cache_file_tag_instance& instance = tags_header.tag_instance_get(index);
+	long* table = instance.tag_data_table();
+	if (table)
+	{
+		for (long i = 0; i < instance.tag_data_count; i++)
+		{
+			s_tag_data* tag_data = reinterpret_cast<s_tag_data*>(reinterpret_cast<char*>(&instance) + (table[i] & k_runtime_address_mask));
+
+			printf("");
+		}
+	}
+}
+
+void handle_tag_resources(s_cache_file_tags_header& tags_header, long index)
+{
+	s_cache_file_tag_instance& instance = tags_header.tag_instance_get(index);
+	long* table = instance.tag_resource_table();
+	if (table)
+	{
+		for (long i = 0; i < instance.tag_resource_count; i++)
+		{
+			s_tag_resource_reference* resource_reference = reinterpret_cast<s_tag_resource_reference*>(reinterpret_cast<char*>(&instance) + (table[i] & k_runtime_address_mask));
+			if (!resource_reference->pagable_resource)
+				continue;
+
+			//s_tag_resource* resource_page = reinterpret_cast<s_tag_resource*>(reinterpret_cast<char*>(&instance) + (resource_reference->pagable_resource & k_runtime_address_mask));
+
+			printf("");
+		}
+	}
+}
+
+void handle_tag_references(s_cache_file_tags_header& tags_header, long index)
+{
+	s_cache_file_tag_instance& instance = tags_header.tag_instance_get(index);
+	long* table = instance.tag_reference_table();
+	if (table)
+	{
+		for (long i = 0; i < instance.tag_reference_count; i++)
+		{
+			s_tag_reference* tag_reference = reinterpret_cast<s_tag_reference*>(reinterpret_cast<char*>(&instance) + (table[i] & k_runtime_address_mask));
+			printf("");
+		}
+	}
 }
 
 void c_hf2p_cache_file_converter::zero_unnused_tags()
 {
-	for (long tag_index = 0; tag_index < m_header->tag_count(); tag_index++)
+	for (long tag_index = 0; tag_index < m_header->tag_count; tag_index++)
 	{
 		long& tag_offset = m_tags_header->tag_table()[tag_index];
 		if (tag_offset == 0)
 			continue;
 
-		cache_file_tag_instance& tag_instance = m_tags_header->tag_instance_get(tag_index);
-		if (tag_instance.is_group('scnr') && tag_index != m_header->scenario_index())
+		handle_child_tags(*m_tags_header, tag_index);
+		handle_tag_data(*m_tags_header, tag_index);
+		handle_tag_resources(*m_tags_header, tag_index);
+		handle_tag_references(*m_tags_header, tag_index);
+
+		s_cache_file_tag_instance& instance = m_tags_header->tag_instance_get(tag_index);
+		if (instance.is_group('scnr') && tag_index != m_header->scenario_index)
 		{
 			tag_offset = 0;
-			tag_instance.zero_out();
+			instance.zero_out();
 		}
 		
-		if (tag_instance.is_group('zone') && tag_index != m_header->cache_file_resource_gestalt_index())
+		if (instance.is_group('zone') && tag_index != m_header->cache_file_resource_gestalt_index)
 		{
 			tag_offset = 0;
-			tag_instance.zero_out();
+			instance.zero_out();
 		}
 	}
 }
