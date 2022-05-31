@@ -6,10 +6,6 @@ __forceinline long cache_file_round_up_read_size(long size)
 	return (size & 0xF) != 0 ? (size | 0xF) + 1 : size;
 }
 
-const long k_tags_shared_file_index = 1;
-const long k_render_models_shared_file_index = 6;
-const long k_lightmaps_shared_file_index = 7;
-
 // 1011 1111 1111 1111 1111 1111 1111 1111
 //  ^ bit 30
 const unsigned long k_runtime_address_mask = 0xBFFFFFFF;
@@ -62,7 +58,38 @@ struct s_cache_file_insertion_point_resource_usage
 };
 static_assert(sizeof(s_cache_file_insertion_point_resource_usage) == 0xB4, "sizeof(s_cache_file_insertion_point_resource_usage) != 0xB4");
 
-template<size_t k_shared_file_count>
+enum e_cache_file_shared_type
+{
+	_cache_file_shared_unknown0 = 0,
+
+	_cache_file_shared_tags,
+	_cache_file_shared_resources,
+
+	_cache_file_shared_unknown3,
+	_cache_file_shared_unknown4,
+	_cache_file_shared_unknown5,
+
+	k_cache_file_shared_old_count,
+
+	_cache_file_shared_render_models = k_cache_file_shared_old_count,
+	_cache_file_shared_lightmaps,
+
+	k_cache_file_shared_new_count
+};
+
+const char* k_cache_file_shared_type_names[k_cache_file_shared_new_count]
+{
+	"",
+	"tags",
+	"resources",
+	"",
+	"",
+	"",
+	"render_models",
+	"lightmaps"
+};
+
+template<long k_shared_file_count>
 struct s_cache_file_header
 {
 	unsigned long header_signature;
@@ -139,155 +166,8 @@ struct s_cache_file_header
 
 	unsigned long footer_signature;
 };
-static_assert(sizeof(s_cache_file_header<6>) == 0x3390, "sizeof(s_cache_file_header) == 0x3390");
-static_assert(sizeof(s_cache_file_header<8>) == 0x3390, "sizeof(s_cache_file_header) == 0x3390");
-
-class c_cache_file_header
-{
-private:
-	s_cache_file_header<6>* pre_zone;
-	s_cache_file_header<8>* post_zone;
-
-	bool older_build()
-	{
-		if ((*pre_zone).shared_file_type_flags & (1 << k_render_models_shared_file_index) &&
-			(*pre_zone).shared_file_type_flags & (1 << k_lightmaps_shared_file_index))
-			return false;
-
-		return true;
-	}
-
-public:
-	c_cache_file_header(char*& data):
-		pre_zone(reinterpret_cast<decltype(pre_zone)>(data)),
-		post_zone(reinterpret_cast<decltype(post_zone)>(data)),
-#define GET_VERSIONED_FIELD(field) field(older_build() ? (*pre_zone).field : (*post_zone).field)
-		GET_VERSIONED_FIELD(header_signature),
-		GET_VERSIONED_FIELD(file_version),
-		GET_VERSIONED_FIELD(file_size),
-		GET_VERSIONED_FIELD(file_compressed_size),
-		GET_VERSIONED_FIELD(tag_data_offset),
-		GET_VERSIONED_FIELD(tag_buffer_offset),
-		GET_VERSIONED_FIELD(total_tags_size),
-		GET_VERSIONED_FIELD(source_file),
-		GET_VERSIONED_FIELD(build),
-		GET_VERSIONED_FIELD(scenario_type),
-		GET_VERSIONED_FIELD(scenario_load_type),
-		GET_VERSIONED_FIELD(__unknown140),
-		GET_VERSIONED_FIELD(tracked_build),
-		GET_VERSIONED_FIELD(has_insertion_points),
-		GET_VERSIONED_FIELD(header_flags),
-		GET_VERSIONED_FIELD(last_modification_date),
-		GET_VERSIONED_FIELD(__unknown14C),
-		GET_VERSIONED_FIELD(__unknown150),
-		GET_VERSIONED_FIELD(__unknown154),
-		GET_VERSIONED_FIELD(string_id_index_buffer_count),
-		GET_VERSIONED_FIELD(string_id_string_storage_size),
-		GET_VERSIONED_FIELD(string_id_index_buffer),
-		GET_VERSIONED_FIELD(string_id_string_storage),
-		GET_VERSIONED_FIELD(shared_file_type_flags),
-		GET_VERSIONED_FIELD(creation_time),
-		GET_VERSIONED_FIELD(shared_file_times),
-		GET_VERSIONED_FIELD(name),
-		GET_VERSIONED_FIELD(game_language),
-		GET_VERSIONED_FIELD(relative_path),
-		GET_VERSIONED_FIELD(minor_version),
-		GET_VERSIONED_FIELD(debug_tag_name_count),
-		GET_VERSIONED_FIELD(debug_tag_name_buffer),
-		GET_VERSIONED_FIELD(debug_tag_name_buffer_length),
-		GET_VERSIONED_FIELD(debug_tag_name_offsets),
-		GET_VERSIONED_FIELD(reports_offset),
-		GET_VERSIONED_FIELD(reports_size),
-		GET_VERSIONED_FIELD(__data2F4),
-		GET_VERSIONED_FIELD(hash),
-		GET_VERSIONED_FIELD(rsa_signature),
-		GET_VERSIONED_FIELD(section_offsets),
-		GET_VERSIONED_FIELD(original_section_bounds),
-		GET_VERSIONED_FIELD(shared_resource_usage),
-		GET_VERSIONED_FIELD(insertion_point_count),
-		GET_VERSIONED_FIELD(insertion_point_resource_usage_storage),
-		GET_VERSIONED_FIELD(tag_table_offset),
-		GET_VERSIONED_FIELD(tag_count),
-		GET_VERSIONED_FIELD(map_id),
-		GET_VERSIONED_FIELD(scenario_index),
-		GET_VERSIONED_FIELD(cache_file_resource_gestalt_index),
-		GET_VERSIONED_FIELD(footer_signature)
-#undef GET_VERSIONED_FIELD
-	{
-		pre_zone = nullptr;
-		post_zone = nullptr;
-	}
-
-	unsigned long& header_signature;
-
-	long& file_version;
-	long& file_size;
-
-	long& file_compressed_size;
-
-	long& tag_data_offset;
-	long& tag_buffer_offset;
-	long& total_tags_size;
-
-	char(&source_file)[256];
-	char(&build)[32];
-
-	short& scenario_type;
-	short& scenario_load_type;
-
-	bool& __unknown140;
-	bool& tracked_build;
-	bool& has_insertion_points;
-	unsigned char& header_flags;
-
-	s_file_last_modification_date& last_modification_date;
-
-	long& __unknown14C;
-	long& __unknown150;
-	long& __unknown154;
-
-	long& string_id_index_buffer_count;
-	long& string_id_string_storage_size;
-	long& string_id_index_buffer;
-	long& string_id_string_storage;
-
-	unsigned char& shared_file_type_flags;
-	s_file_last_modification_date& creation_time;
-	s_file_last_modification_date* shared_file_times;
-
-	char(&name)[32];
-	long& game_language;
-	char(&relative_path)[256];
-	long& minor_version;
-
-	long& debug_tag_name_count;
-	long& debug_tag_name_buffer;
-	long& debug_tag_name_buffer_length;
-	long& debug_tag_name_offsets;
-
-	long& reports_offset;
-	long& reports_size;
-
-	char(&__data2F4)[60];
-
-	s_network_http_request_hash& hash;
-	s_rsa_signature& rsa_signature;
-
-	long(&section_offsets)[4];
-	s_cache_file_section_file_bounds(&original_section_bounds)[4];
-
-	s_cache_file_shared_resource_usage& shared_resource_usage;
-	char& insertion_point_count;
-	s_cache_file_insertion_point_resource_usage(&insertion_point_resource_usage_storage)[9];
-
-	long& tag_table_offset;
-	long& tag_count;
-	long& map_id;
-	long& scenario_index;
-	long& cache_file_resource_gestalt_index;
-
-	unsigned long& footer_signature;
-};
+static_assert(sizeof(s_cache_file_header<k_cache_file_shared_old_count>) == 0x3390, "sizeof(s_cache_file_header) == 0x3390");
+static_assert(sizeof(s_cache_file_header<k_cache_file_shared_new_count>) == 0x3390, "sizeof(s_cache_file_header) == 0x3390");
 
 struct s_cache_file_tag_group
 {
@@ -376,16 +256,6 @@ struct s_cache_file_tags_header
 	long : 32;
 	long : 32;
 
-	__forceinline long* tag_table()
-	{
-		return reinterpret_cast<long*>(reinterpret_cast<char*>(this) + tag_table_offset);
-	}
-
-	__forceinline s_cache_file_tag_instance& tag_instance_get(long tag_index)
-	{
-		return *reinterpret_cast<s_cache_file_tag_instance*>(reinterpret_cast<char*>(this) + tag_table()[tag_index]);
-	}
-
 	__forceinline void zero_out();
 };
 static_assert(sizeof(s_cache_file_tags_header) == 0x20, "sizeof(s_cache_file_tags_header) != 0x20");
@@ -426,4 +296,47 @@ struct s_tag_resource_reference
 };
 static_assert(sizeof(s_tag_resource_reference) == 0x8, "sizeof(s_tag_resource_reference) != 0x8");
 
-template<size_t k_added>
+template<long k_added>
+struct s_tag_resource_page
+{
+	unsigned short identifier;
+
+	//unsigned char checksum : 1;
+	//unsigned char resources : 1;
+	//unsigned char textures : 1;
+	//unsigned char textures_b : 1;
+	//unsigned char audio : 1;
+	//unsigned char video : 1;
+	//unsigned char render_models : 1;
+	//unsigned char lightmaps : 1;
+	unsigned char flags;
+
+	char compression_codec_index;
+	long index;
+	long compressed_block_size;
+	long uncompressed_block_size;
+	long crc_checksum;
+	short block_asset_count;
+	short : 16;
+	long extra[3 + k_added];
+};
+static_assert(sizeof(s_tag_resource_page<0>) == 0x24, "sizeof(s_tag_resource_page) != 0x24");
+static_assert(sizeof(s_tag_resource_page<1>) == 0x28, "sizeof(s_tag_resource_page) != 0x28");
+
+// post zone added 4 bytes
+struct s_tag_resource : s_tag_resource_page<0>
+{
+	s_tag_reference parent_tag;
+	unsigned short salt;
+	char resource_type_index;
+	unsigned char flags;
+	struct s_tag_data definition_data;
+	unsigned long definition_address;
+	s_tag_block resource_fixups;
+	s_tag_block resource_definition_fixups;
+	long : 32;
+};
+static_assert(sizeof(s_tag_resource) == 0x6C, "sizeof(s_tag_resource) != 0x6C");
+//static_assert(sizeof(s_tag_resource_page) == 0x70, "sizeof(s_tag_resource_page) != 0x70");
+
+#pragma pack(pop)
