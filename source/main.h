@@ -1,9 +1,50 @@
 #pragma once
 
-#include <stdio.h>
 #include <string.h>
 
+#include <shlwapi.h>
+#pragma comment(lib, "shlwapi.lib")
+
+#include <file_io.h>
+
 #include <cache_file.h>
+
+template<typename t_func>
+char* strnew(const char* str, t_func* string_edit_callback)
+{
+	char* out_str = _strdup(str);
+
+	if (string_edit_callback)
+		string_edit_callback(out_str);
+
+	return out_str;
+}
+
+template<typename t_func>
+wchar_t* wcsnew(const wchar_t* str, t_func* string_edit_callback)
+{
+	wchar_t* out_str = _wcsdup(str);
+
+	if (string_edit_callback)
+		string_edit_callback(out_str);
+
+	return out_str;
+}
+
+long strings_from_buffer(char* buffer, char**& out_strings, long maximum_string_count)
+{
+	out_strings = new char*[maximum_string_count]{};
+
+	long offset = 0;
+	long string_count = 0;
+	while (buffer[offset])
+	{
+		out_strings[string_count++] = buffer + offset;
+		offset += (long)strlen(buffer + offset++);
+	}
+
+	return string_count;
+}
 
 void s_cache_file_tag_instance::zero_out()
 {
@@ -31,7 +72,7 @@ private:
 	}
 
 public:
-	c_cache_file_header(char* data);
+	c_cache_file_header(unsigned char* data);
 
 	unsigned long& header_signature;
 
@@ -110,7 +151,7 @@ private:
 	s_cache_file_tags_header* tags_header;
 
 public:
-	c_cache_file_tags_header(char* data) :
+	c_cache_file_tags_header(unsigned char* data) :
 		tags_header(reinterpret_cast<s_cache_file_tags_header*>(data)),
 		tag_table_offset(tags_header->tag_table_offset),
 		tag_count(tags_header->tag_count),
@@ -122,6 +163,19 @@ public:
 	__forceinline s_cache_file_tag_instance& tag_instance_get(long tag_index)
 	{
 		return *reinterpret_cast<s_cache_file_tag_instance*>(reinterpret_cast<char*>(tags_header) + tag_table[tag_index]);
+	}
+
+	__forceinline long total_tags_size_get()
+	{
+		long total_tags_size = 0;
+		for (long tag_index = 0; tag_index < tags_header->tag_count; tag_index++)
+		{
+			if (tag_table[tag_index] == 0)
+				continue;
+
+			total_tags_size += tag_instance_get(tag_index).total_tag_size;
+		}
+		return total_tags_size;
 	}
 	
 	void handle_child_tags(long index);
@@ -139,22 +193,22 @@ public:
 class c_hf2p_cache_file_converter
 {
 public:
-	c_hf2p_cache_file_converter(const char* maps_path, const char* map_name);
+	c_hf2p_cache_file_converter(const char* map_path, const char* map_name);
 	~c_hf2p_cache_file_converter();
 	bool apply_changes();
 	bool write_changes_to_disk(bool replace = false);
 
 protected:
 	char m_in_map_path[260];
-	char* m_in_map_data;
+	unsigned char* m_in_map_data;
 	long m_in_map_data_size;
 
 	char m_out_map_path[260];
-	char* m_out_map_data;
+	unsigned char* m_out_map_data;
 	long m_out_map_data_size;
 
 	char* m_shared_file_data_paths[k_cache_file_shared_new_count];
-	char* m_shared_file_datas[k_cache_file_shared_new_count];
+	unsigned char* m_shared_file_datas[k_cache_file_shared_new_count];
 	long m_shared_file_data_sizes[k_cache_file_shared_new_count];
 	long m_shared_file_data_offsets[k_cache_file_shared_new_count];
 
@@ -168,36 +222,3 @@ private:
 	void add_localization_section();
 	void zero_unnused_tags();
 };
-
-bool read_data_from_file(char*& out_data, long& out_size, const char* filename)
-{
-	FILE* file = nullptr;
-	if (fopen_s(&file, filename, "rb"), file != nullptr)
-	{
-		fseek(file, 0, SEEK_END);
-		out_size = ftell(file);
-		fseek(file, 0, SEEK_SET);
-
-		out_data = new char[out_size];
-		fread(out_data, 1, out_size, file);
-
-		fclose(file);
-		return true;
-	}
-
-	return false;
-}
-
-bool write_data_to_file(char* data, long size, const char* filename)
-{
-	FILE* file = nullptr;
-	if (fopen_s(&file, filename, "wb"), file != nullptr)
-	{
-		fwrite(data, 1, size, file);
-
-		fclose(file);
-		return true;
-	}
-
-	return false;
-}
